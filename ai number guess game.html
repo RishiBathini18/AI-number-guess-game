@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>AI Number Guesser</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .animate-pulse {
+            animation: pulse 1s infinite;
+        }
+        .result-correct {
+            background: linear-gradient(135deg, #000906, #10b981);
+        }
+        .result-wrong {
+            background: linear-gradient(135deg, #f87171, #ef4444);
+        }
+        .ai-thinking {
+            position: relative;
+        }
+        .ai-thinking::after {
+            content: "⋯";
+            position: absolute;
+            animation: aiThinking 1.5s infinite;
+            font-size: 2rem;
+            color: white;
+        }
+        @keyframes aiThinking {
+            0% { content: "⋯"; }
+            33% { content: "⋯."; }
+            66% { content: "⋯.."; }
+            100% { content: "⋯..."; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <div class="container mx-auto px-4 py-8 max-w-3xl flex-grow">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-indigo-800 mb-2">AI Number Guesser</h1>
+            <p class="text-lg text-gray-600">Can you beat the AI at guessing numbers?</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-8 transition-all duration-300">
+            <div class="p-6">
+                <div id="game-area" class="text-center">
+                    <div id="intro" class="mb-6">
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-4">How to Play</h2>
+                        <p class="text-gray-600 mb-4">
+                            The AI selects a secret number between 1-100. Your challenge is to guess whether 
+                            the next number will be <span class="font-bold text-indigo-600">higher</span> or 
+                            <span class="font-bold text-indigo-600">lower</span> than the current number.
+                        </p>
+                        <button id="start-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg transition">
+                            Start Game
+                        </button>
+                    </div>
+
+                    <div id="gameplay" class="hidden">
+                        <div id="game-header" class="flex justify-between items-center mb-6">
+                            <div class="text-left">
+                                <span id="score" class="font-bold text-indigo-600">Score: 0</span>
+                                <span id="streak" class="ml-4 font-bold text-yellow-600 hidden">Streak: 0</span>
+                            </div>
+                            <div>
+                                <span id="round" class="text-gray-500">Round 1/10</span>
+                            </div>
+                        </div>
+
+                        <div id="current-number" class="text-6xl font-bold my-8 text-indigo-700 animate-pulse">0</div>
+                        
+                        <div id="ai-status" class="ai-thinking text-xl font-semibold text-gray-700 mb-4 hidden">
+                            <span id="ai-text">AI is choosing...</span>
+                        </div>
+
+                        <div id="controls" class="flex justify-center gap-4 mb-6">
+                            <button id="higher-btn" disabled class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg transition disabled:opacity-50">
+                                Higher ▲
+                            </button>
+                            <button id="lower-btn" disabled class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg transition disabled:opacity-50">
+                                Lower ▼
+                            </button>
+                        </div>
+
+                        <div id="result" class="rounded-lg p-4 text-white font-bold text-lg mb-4 hidden">
+                            <span id="result-text"></span>
+                        </div>
+
+                        <div id="next-round" class="hidden">
+                            <button id="next-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg transition">
+                                Next Round
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="game-over" class="hidden">
+                        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Game Over!</h2>
+                        <div id="final-score" class="text-indigo-600 text-5xl font-bold my-6">0</div>
+                        <p id="feedback" class="text-gray-600 mb-6">You scored 0 points</p>
+                        <button id="play-again-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg transition">
+                            Play Again
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center text-gray-500 text-sm mt-4">
+            <p>Each game consists of 10 rounds. Challenge yourself to beat your high score!</p>
+        </div>
+    </div>
+
+    <footer class="bg-gray-800 text-white py-4 text-center">
+        <p>AI Number Guesser © 2023 - Simple AI Game</p>
+    </footer>
+
+    <script>
+        // Game state
+        let currentNumber = 0;
+        let nextNumber = 0;
+        let score = 0;
+        let streak = 0;
+        let round = 1;
+        let gameActive = false;
+        const totalRounds = 10;
+
+        // DOM elements
+        const introElement = document.getElementById('intro');
+        const gameplayElement = document.getElementById('gameplay');
+        const gameOverElement = document.getElementById('game-over');
+        const currentNumberElement = document.getElementById('current-number');
+        const scoreElement = document.getElementById('score');
+        const streakElement = document.getElementById('streak');
+        const roundElement = document.getElementById('round');
+        const higherButton = document.getElementById('higher-btn');
+        const lowerButton = document.getElementById('lower-btn');
+        const resultElement = document.getElementById('result');
+        const resultTextElement = document.getElementById('result-text');
+        const nextRoundElement = document.getElementById('next-round');
+        const aiStatusElement = document.getElementById('ai-status');
+        const aiTextElement = document.getElementById('ai-text');
+        const finalScoreElement = document.getElementById('final-score');
+        const feedbackElement = document.getElementById('feedback');
+        const startButton = document.getElementById('start-btn');
+        const nextButton = document.getElementById('next-btn');
+        const playAgainButton = document.getElementById('play-again-btn');
+
+        // Event listeners
+        startButton.addEventListener('click', startGame);
+        higherButton.addEventListener('click', () => makeGuess('higher'));
+        lowerButton.addEventListener('click', () => makeGuess('lower'));
+        nextButton.addEventListener('click', nextRound);
+        playAgainButton.addEventListener('click', resetGame);
+
+        // Game functions
+        function startGame() {
+            introElement.classList.add('hidden');
+            gameplayElement.classList.remove('hidden');
+            gameActive = true;
+            nextRound();
+        }
+
+        function nextRound() {
+            if (round > totalRounds) {
+                endGame();
+                return;
+            }
+
+            // Reset UI state
+            resultElement.classList.add('hidden');
+            nextRoundElement.classList.add('hidden');
+            higherButton.disabled = true;
+            lowerButton.disabled = true;
+            aiStatusElement.classList.remove('hidden');
+            
+            // Update round display
+            roundElement.textContent = `Round ${round}/${totalRounds}`;
+            
+            // Generate random numbers
+            currentNumber = Math.floor(Math.random() * 100) + 1;
+            nextNumber = Math.floor(Math.random() * 100) + 1;
+            
+            // Show current number after short delay
+            setTimeout(() => {
+                currentNumberElement.textContent = currentNumber;
+                
+                // Simulate AI "thinking"
+                setTimeout(() => {
+                    aiStatusElement.classList.add('hidden');
+                    higherButton.disabled = false;
+                    lowerButton.disabled = false;
+                }, 1000 + Math.random() * 1000);
+            }, 500);
+        }
+
+        function makeGuess(guess) {
+            if (!gameActive) return;
+
+            higherButton.disabled = true;
+            lowerButton.disabled = true;
+            
+            // Determine correctness
+            const isHigherCorrect = (nextNumber > currentNumber && guess === 'higher');
+            const isLowerCorrect = (nextNumber < currentNumber && guess === 'lower');
+            const isCorrect = isHigherCorrect || isLowerCorrect || (nextNumber === currentNumber);
+
+            // Update score and streak
+            if (isCorrect) {
+                streak += 1;
+                score += streak; // Bonus points for streaks
+                resultElement.classList.add('result-correct');
+                resultElement.classList.remove('result-wrong');
+                resultTextElement.textContent = `Correct! The number was ${nextNumber}`;
+            } else {
+                streak = 0;
+                resultElement.classList.add('result-wrong');
+                resultElement.classList.remove('result-correct');
+                resultTextElement.textContent = `Wrong! The number was ${nextNumber}`;
+            }
+
+            // Update UI
+            scoreElement.textContent = `Score: ${score}`;
+            
+            if (streak > 1) {
+                streakElement.textContent = `Streak: ${streak}x`;
+                streakElement.classList.remove('hidden');
+            } else {
+                streakElement.classList.add('hidden');
+            }
+            
+            resultElement.classList.remove('hidden');
+            setTimeout(() => {
+                currentNumberElement.textContent = nextNumber;
+                
+                if (round < totalRounds) {
+                    nextRoundElement.classList.remove('hidden');
+                } else {
+                    setTimeout(endGame, 1500);
+                }
+            }, 1000);
+            
+            round++;
+        }
+
+        function endGame() {
+            gameplayElement.classList.add('hidden');
+            gameOverElement.classList.remove('hidden');
+            finalScoreElement.textContent = score;
+            
+            // Provide feedback based on score
+            if (score >= 45) {
+                feedbackElement.textContent = `Amazing! You scored ${score} points! You must have ESP.`;
+            } else if (score >= 30) {
+                feedbackElement.textContent = `Great job! You scored ${score} points.`;
+            } else if (score >= 15) {
+                feedbackElement.textContent = `Good attempt! You scored ${score} points. Keep practicing!`;
+            } else {
+                feedbackElement.textContent = `You scored ${score} points. Try again!`;
+            }
+        }
+
+        function resetGame() {
+            score = 0;
+            streak = 0;
+            round = 1;
+            gameOverElement.classList.add('hidden');
+            gameplayElement.classList.remove('hidden');
+            
+            // Reset UI elements
+            scoreElement.textContent = `Score: ${score}`;
+            streakElement.classList.add('hidden');
+            resultElement.classList.add('hidden');
+            
+            startGame();
+        }
+    </script>
+</body>
+</html>
